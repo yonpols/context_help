@@ -1,2 +1,17 @@
-== ContextHelp
+= ContextHelp
 
+ContexHelp is a ruby gem for discovering documentable elements in rails applications
+and showing help for them. Currently ContextHelp detects form_tag elements, models and
+attributes in forms rendered by form_for or formtastic, and other html elements rendered
+by *_tag helpers.
+
+== Features
+
+* Autodetection of model and attributes present on a view from formtastic y form_for helpers.
+* Autodetection of html tags rendered by *_tag helpers
+* Custom documentation for custom elements through I18n like routes. Ej: 'en.context_help.custom.tree_view'
+* Basic inline and contextual help HTML renderer
+* Customizable renderers
+* Internationalized text. ContextHelp gets help texts from I18n files.
+
+==

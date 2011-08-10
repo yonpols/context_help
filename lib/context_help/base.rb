@@ -26,9 +26,9 @@ module ContextHelp
     }
 
     def self.help_for(options)
-      help_options = options[:context_help].dup 
+      help_options = options[:context_help]
       self.help_path_for(help_options)
-      self.inline_help(help_options, options)
+      self.inline_help(help_options)
     end
     def self.context_help(&block)
       help = ''
@@ -51,8 +51,16 @@ module ContextHelp
     def self.flush_items
       @help_items = []
     end
-
-    private
+    def self.inline_help(options)
+      return '' if options[:skip] or !options[:calculated_path]
+      if options[:inline_help_builder].is_a?(Proc) 
+        options[:inline_help_builder].call(options)
+      elsif options[:show_inline]
+        self.html_help(options)
+      else
+        ''
+      end
+    end
     def self.help_path_for(options,register=true)
       path = options[:path]
       return path if path.is_a?(String)
@@ -61,24 +69,24 @@ module ContextHelp
       if !options[:skip]
         if path[:model] and @config[:exclude_models].index(path[:model].to_sym).nil?
           ruta = 'context_help.models.'+model_name(path[:model])
-          options[:level_class] = @config[:level_classes][:model]
+          options[:pre_level_class] = @config[:level_classes][:model]
           
           if (path[:attribute])
             ruta = ruta + '.attributes.'+ path[:attribute].to_s.underscore
-            options[:level_class] = @config[:level_classes][:model_attribute]
+            options[:pre_level_class] = @config[:level_classes][:model_attribute]
           end  
         elsif path[:tag] and @config[:exclude_tags].index(path[:tag].to_sym).nil?
           ruta = 'context_help.html.'+path[:tag].to_s.downcase
           ruta = ruta + '.' + path[:tag_options][:id].to_s if path[:tag_options][:id]
           
           if @config[:level_classes][:html].include?(path[:tag])
-            options[:level_class] = @config[:level_classes][:html][path[:tag]]
+            options[:pre_level_class] = @config[:level_classes][:html][path[:tag]]
           else
-            options[:level_class] = @config[:level_classes][:html][:default]
+            options[:pre_level_class] = @config[:level_classes][:html][:default]
           end
         elsif path[:custom]
-          ruta = 'context_help.custom.'+options[:custom]
-          options[:level_class] = @config[:level_classes][:custom]
+          ruta = 'context_help.custom.'+path[:custom]
+          options[:pre_level_class] = @config[:level_classes][:custom]
         end
       end
       if ruta              
@@ -92,36 +100,30 @@ module ContextHelp
       if options[:help_builder].is_a?(Proc) 
         options[:help_builder].call(options)
       elsif options[:calculated_path]
-        html = "<#{options[:title_tag]} id=\"#{options[:item_id]}\" class=\"#{options[:title_class]} #{options[:level_class]}\">#{I18n.t(options[:calculated_path]+'.title')}</#{options[:title_tag]}>
-        <#{options[:text_tag]} class=\"#{options[:text_class]} #{options[:level_class]}\">#{I18n.t(options[:calculated_path]+'.text')}</#{options[:text_tag]}>"
-        html += "<a href=\"##{options[:item_id]}_object\" class=\"context_help_link_to_object\">field</a>" if options[:link_to_object]
+        title = options[:title] || I18n.t(options[:calculated_path]+'.title')
+        text = options[:text] || I18n.t(options[:calculated_path]+'.text')
+        html = "<#{options[:title_tag]} id=\"#{options[:item_id]}\" class=\"#{options[:title_class]} #{options[:level_class]}\">#{title}</#{options[:title_tag]}>
+        <#{options[:text_tag]} class=\"#{options[:text_class]} #{options[:level_class]}\">#{text}</#{options[:text_tag]}>"
+        html += self.link_to_object(options)
         html
       end
     end
-    def self.inline_help(options, original_options)
-      return '' if options[:skip] or !options[:calculated_path]
-      if options[:inline_help_builder].is_a?(Proc) 
-        options[:inline_help_builder].call(options)
-      elsif options[:show_inline]
-        self.html_help(options)
+    def self.link_to_help(options)  
+      if options[:link_to_help_builder].is_a?(Proc)
+        options[:link_to_help_builder].call(options)
       elsif options[:link_to_help] and !I18n.t(options[:calculated_path]+'.title', :default => {}).is_a?(Hash)
-        self.link_to_help(options, original_options)
+        "<a href=\"##{options[:item_id]}\" id=\"#{options[:item_id]}_object\" class=\"context_help_link_to_help\">help</a>"
       else
         ''
-      end
-    end
-    def self.link_to_help(options, original_options)  
-      if options[:link_to_help_builder].is_a?(Proc)
-        options[:link_to_help_builder].call(options, original_options)
-      else
-        "<a href=\"##{options[:item_id]}\" id=\"#{options[:item_id]}_object\" class=\"context_help_link_to_help\">help</a>"
       end
     end
     def self.link_to_object(options)  
       if options[:link_to_object_builder].is_a?(Proc)
         options[:link_to_object_builder].call(options)
-      else
+      elsif options[:link_to_object]
         "<a href=\"#link_to_help_#{options[:item_id]}\">help</a>"
+      else
+        ''
       end
     end
     def self.register_item(options)
@@ -147,7 +149,7 @@ module ContextHelp
         options[:text_class] ||= get_option(:text_class, options)
         options[:link_to_object] ||= get_option(:link_to_object, options)
         options[:link_to_help] ||= get_option(:link_to_help, options)
-        options[:level_class] ||= I18n.t(options[:calculated_path]+'.level_class', :default => 'help_level_1')
+        options[:level_class] ||= I18n.t(options[:calculated_path]+'.level_class', :default => (options[:pre_level_class] || 'help_level_1'))
         options[:link_to_help_builder] ||= @config[:link_to_help_builder]
         options[:link_to_object_builder] ||= @config[:link_to_object_builder]
         options[:inline_help_builder] ||= @config[:inline_help_builder]
@@ -163,6 +165,16 @@ module ContextHelp
         model.match(/^[a-z][a-z0-9_]*\[([a-z][a-z0-9_]*)_attributes\]/)[1].singularize
       else
         model
+      end
+    end
+    def self.merge_options(base, added)
+      if base.is_a?(Hash) and added.is_a?(Hash)
+        added.each do |key,value|
+          base[key] = self.merge_options(base[key], value)
+        end
+        return base
+      else
+        return base || added
       end
     end
   end
