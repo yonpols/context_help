@@ -17,7 +17,14 @@ module ActionView
         help_options = ContextHelp::Base.merge_options({:context_help => {:path => {:model => object_name.to_sym, :attribute=> method.to_sym}}}, options)
         ContextHelp::Base.help_for(help_options)
         link_to_help = ContextHelp::Base.link_to_help(help_options[:context_help])
-        label_without_context_help_label(object_name, method, text.to_s + link_to_help, options)
+        text = if text.blank?
+          i18n_label = I18n.t("helpers.label.#{object_name}.#{method}", :default => "")
+          i18n_label if i18n_label.present?
+        else
+          text.to_s
+        end
+        text ||= method.to_s.humanize
+        label_without_context_help_label(object_name, method, text.to_s + link_to_help, help_options)
       end
       def text_field_with_context_help_text_field(object_name, method, options = {})
         help_options = ContextHelp::Base.merge_options({:context_help => {:path => {:model => object_name.to_sym, :attribute=> method.to_sym}}}, options)

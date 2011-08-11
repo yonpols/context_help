@@ -75,6 +75,9 @@ module ContextHelp
             ruta = ruta + '.attributes.'+ path[:attribute].to_s.underscore
             options[:pre_level_class] = @config[:level_classes][:model_attribute]
           end  
+        elsif path[:custom]
+          ruta = 'context_help.custom.'+path[:custom]
+          options[:pre_level_class] = @config[:level_classes][:custom]
         elsif path[:tag] and @config[:exclude_tags].index(path[:tag].to_sym).nil?
           ruta = 'context_help.html.'+path[:tag].to_s.downcase
           ruta = ruta + '.' + path[:tag_options][:id].to_s if path[:tag_options][:id]
@@ -84,13 +87,10 @@ module ContextHelp
           else
             options[:pre_level_class] = @config[:level_classes][:html][:default]
           end
-        elsif path[:custom]
-          ruta = 'context_help.custom.'+path[:custom]
-          options[:pre_level_class] = @config[:level_classes][:custom]
         end
       end
       if ruta              
-        options[:calculated_path] = ruta if (I18n.t(ruta+'.title', :default => '') != '') or (Rails.env.development? and @config[:show_missing])
+        options[:calculated_path] = ruta
         self.register_item(options) if register
         return options[:calculated_path]
       end
@@ -100,8 +100,10 @@ module ContextHelp
       if options[:help_builder].is_a?(Proc) 
         options[:help_builder].call(options)
       elsif options[:calculated_path]
-        title = options[:title] || I18n.t(options[:calculated_path]+'.title')
-        text = options[:text] || I18n.t(options[:calculated_path]+'.text')
+        title = options[:title] || I18n.t(options[:calculated_path]+'.title', :default => {})
+        text = options[:text] || I18n.t(options[:calculated_path]+'.text', :default => {})
+        return '' if (title.nil? || title.is_a?(Hash) || text.nil? || text.is_a?(Hash)) and !(Rails.env.development? and @config[:show_missing])
+
         html = "<#{options[:title_tag]} id=\"#{options[:item_id]}\" class=\"#{options[:title_class]} #{options[:level_class]}\">#{title}</#{options[:title_tag]}>
         <#{options[:text_tag]} class=\"#{options[:text_class]} #{options[:level_class]}\">#{text}</#{options[:text_tag]}>"
         html += self.link_to_object(options)
@@ -111,7 +113,9 @@ module ContextHelp
     def self.link_to_help(options)  
       if options[:link_to_help_builder].is_a?(Proc)
         options[:link_to_help_builder].call(options)
-      elsif options[:link_to_help] and !I18n.t(options[:calculated_path]+'.title', :default => {}).is_a?(Hash)
+      elsif options[:link_to_help] and options[:calculated_path]
+        title = options[:title] || I18n.t(options[:calculated_path]+'.title', :default => {})
+        return '' if title.nil? || title.is_a?(Hash)
         "<a href=\"##{options[:item_id]}\" id=\"#{options[:item_id]}_object\" class=\"context_help_link_to_help\">help</a>"
       else
         ''
@@ -170,7 +174,7 @@ module ContextHelp
     def self.merge_options(base, added)
       if base.is_a?(Hash) and added.is_a?(Hash)
         added.each do |key,value|
-          base[key] = self.merge_options(base[key], value)
+          base[key.to_sym] = self.merge_options(base[key.to_sym], value)
         end
         return base
       else

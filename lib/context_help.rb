@@ -1,3 +1,4 @@
+require 'context_help/patches/form_tag_helper_patch'
 require 'context_help/patches/tag_helper_patch'
 require 'context_help/patches/form_helper_patch'
 require 'context_help/patches/formtastic_patch'
