@@ -10,7 +10,12 @@ module ContextHelp
     end
     def input(method, options = {})   
       options = ContextHelp::Base.merge_options({:context_help => {:path => {:model => model_name.to_sym, :attribute=> method.to_sym}}}, options || {})
-      html = super
+      super
+    end
+    def radio_input(method, options)
+      options[:label] = localized_string(method, options[:label], :label) || humanized_attribute_name(method)
+      ContextHelp::Base.help_for(options) 
+      super
     end
     def legend_tag(method, options = {})
       if options[:label] == false
@@ -19,8 +24,7 @@ module ContextHelp
         text = localized_string(method, options[:label], :label) || humanized_attribute_name(method)
         text += required_or_optional_string(options.delete(:required))
         text = Formtastic::Util.html_safe(text)
-        text += ContextHelp::Base.link_to_help(options[:context_help])
-        template.content_tag :legend, template.label_tag(nil, text, :for => nil), :class => :label
+        template.content_tag :legend, template.label_tag(nil, text, options), :class => :label
       end
     end
   end
