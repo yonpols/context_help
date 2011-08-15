@@ -3,13 +3,13 @@ module ContextHelp
     def inputs(*args, &block)
       title = field_set_title_from_args(*args)
       html_options = args.extract_options!
-      help_options = ContextHelp::Base.merge_options({:context_help => {:path => {:tag => 'fieldset', :tag_options => html_options}}}, html_options)
+      help_options = ContextHelp::Helpers.merge_options({:context_help => {:path => {:tag => 'fieldset', :tag_options => html_options}}}, html_options)
       help_options[:context_help][:title] = title if help_options[:context_help][:path][:tag]
       help = ContextHelp::Base.help_for(help_options)
       super *(args<<help_options), &block
     end
     def input(method, options = {})   
-      options = ContextHelp::Base.merge_options({:context_help => {:path => {:model => model_name.to_sym, :attribute=> method.to_sym}}}, options || {})
+      options = ContextHelp::Helpers.merge_options({:context_help => {:path => {:model => model_name.to_sym, :attribute=> method.to_sym}}}, options || {})
       super
     end
     def radio_input(method, options)

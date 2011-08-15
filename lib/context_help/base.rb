@@ -25,6 +25,16 @@ module ContextHelp
        :link_to_help => false
     }
 
+    def self.help_items
+      @help_items
+    end
+    def self.config
+      @config
+    end
+    def self.flush_items
+      @help_items = []
+    end
+
     def self.help_for(options)
       help_options = options[:context_help]
       self.help_path_for(help_options)
@@ -41,15 +51,6 @@ module ContextHelp
         end
       end
       help.strip
-    end
-    def self.help_items
-      @help_items
-    end
-    def self.config
-      @config
-    end
-    def self.flush_items
-      @help_items = []
     end
     def self.inline_help(options)
       return '' if options[:skip] or !options[:calculated_path]
@@ -68,7 +69,7 @@ module ContextHelp
       ruta = nil
       if !options[:skip]
         if path[:model] and @config[:exclude_models].index(path[:model].to_sym).nil?
-          ruta = 'context_help.models.'+model_name(path[:model])
+          ruta = 'context_help.models.'+Helpers.model_name(path[:model])
           options[:pre_level_class] = @config[:level_classes][:model]
           
           if (path[:attribute])
@@ -100,9 +101,9 @@ module ContextHelp
       if options[:help_builder].is_a?(Proc) 
         options[:help_builder].call(options)
       elsif options[:calculated_path]
-        title = options[:title] || I18n.t(options[:calculated_path]+'.title', :default => {})
-        text = options[:text] || I18n.t(options[:calculated_path]+'.text', :default => {})
-        return '' if (title.nil? || title.is_a?(Hash) || text.nil? || text.is_a?(Hash)) and !(Rails.env.development? and @config[:show_missing])
+        title = Helpers.get_title(options)
+        text = Helpers.get_text(options)
+        return '' if (title.nil? || text.nil?) and !(Rails.env.development? and @config[:show_missing])
 
         html = "<#{options[:title_tag]} id=\"#{options[:item_id]}\" class=\"#{options[:title_class]} #{options[:level_class]}\">#{title}</#{options[:title_tag]}>
         <#{options[:text_tag]} class=\"#{options[:text_class]} #{options[:level_class]}\">#{text}</#{options[:text_tag]}>"
@@ -114,8 +115,8 @@ module ContextHelp
       if options[:link_to_help_builder].is_a?(Proc)
         options[:link_to_help_builder].call(options)
       elsif options[:link_to_help] and options[:calculated_path]
-        title = options[:title] || I18n.t(options[:calculated_path]+'.title', :default => {})
-        return '' if title.nil? || title.is_a?(Hash)
+        title = Helpers.get_title(options)
+        return '' if title.nil?
         "<a href=\"##{options[:item_id]}\" id=\"#{options[:item_id]}_object\" class=\"context_help_link_to_help\">help</a>"
       else
         ''
@@ -163,6 +164,51 @@ module ContextHelp
         @help_items << options 
       end
     end 
+  end
+
+  module Helpers
+    def self.is_visible(options)
+      return false if options[:calculated_path].nil?
+      text = options[:text] || I18n.t(options[:calculated_path]+'.text', :default => {})
+      return false if (text.nil? or text.is_a?(Hash)) and !(Rails.env.development? and ContextHelp::Base.config[:show_missing])
+      true
+    end
+    def self.get_title(options)
+      title = options[:title] || I18n.t(options[:calculated_path]+'.title', :default => {})
+      if (title.nil? or title.is_a?(Hash)) 
+        title = nil
+        if options[:path][:model]
+          model_class = model_name(options[:path][:model]).classify
+          if const_defined?(model_class)
+            model_class = model_class.constantize
+            if options[:path][:attribute] then
+              title = model_class.human_attribute_name(options[:path][:attribute].to_s) rescue I18n.t(options[:calculated_path]+'.title')
+            else
+              title = model_class.human_name
+            end
+          else
+            title = I18n.t(options[:calculated_path]+'.title')
+          end
+        else
+          title = I18n.t(options[:calculated_path]+'.title') if Rails.env.development? and ContextHelp::Base.config[:show_missing]
+        end
+      else
+        if title.start_with?('t.')
+          title = I18n.t title[2, title.length]
+        elsif title.start_with?('I18n.')
+          title = I18n.t title[5, title.length]
+        end
+      end
+      title
+    end
+    def self.get_text(options)
+      text = options[:text] || I18n.t(options[:calculated_path]+'.text', :default => {})
+      if (text.nil? or text.is_a?(Hash)) 
+        nil
+      else
+        text
+      end
+    end
     def self.model_name(model)
       model = model.to_s.underscore
       if model =~ /^[a-z][a-z0-9_]*\[[a-z][a-z0-9_]*_attributes\]/
