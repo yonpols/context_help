@@ -169,8 +169,7 @@ module ContextHelp
   module Helpers
     def self.is_visible(options)
       return false if options[:calculated_path].nil?
-      text = options[:text] || I18n.t(options[:calculated_path]+'.text', :default => {})
-      return false if (text.nil? or text.is_a?(Hash)) and !(Rails.env.development? and ContextHelp::Base.config[:show_missing])
+      return false if self.get_text(options,false).nil?
       true
     end
     def self.get_title(options)
@@ -178,15 +177,14 @@ module ContextHelp
       if (title.nil? or title.is_a?(Hash)) 
         title = nil
         if options[:path][:model]
-          model_class = model_name(options[:path][:model]).classify
-          if const_defined?(model_class)
-            model_class = model_class.constantize
+          begin
+            model_class = model_name(options[:path][:model]).classify.constantize
             if options[:path][:attribute] then
               title = model_class.human_attribute_name(options[:path][:attribute].to_s) rescue I18n.t(options[:calculated_path]+'.title')
             else
               title = model_class.human_name
             end
-          else
+          rescue
             title = I18n.t(options[:calculated_path]+'.title')
           end
         else
@@ -201,10 +199,14 @@ module ContextHelp
       end
       title
     end
-    def self.get_text(options)
+    def self.get_text(options,missing=true)
       text = options[:text] || I18n.t(options[:calculated_path]+'.text', :default => {})
       if (text.nil? or text.is_a?(Hash)) 
-        nil
+        if missing and Rails.env.development? and ContextHelp::Base.config[:show_missing]
+          I18n.t(options[:calculated_path]+'.text')
+        else
+          nil
+        end
       else
         text
       end
