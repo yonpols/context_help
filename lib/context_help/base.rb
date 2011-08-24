@@ -229,5 +229,10 @@ module ContextHelp
         return base || added
       end
     end
+    def self.clean(options)
+      options.delete(:context_help)
+      options.delete('context_help')
+      options
+    end
   end
 end
