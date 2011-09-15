@@ -214,7 +214,6 @@ module ContextHelp
       
       plugin_prefixes.each do |prefix|
         begin
-          Rails.logger.info "CHH: " + prefix + path
           item = I18n.translate prefix + path, :raise => true
           if item.start_with?('t.')
             item = I18n.t item[2, item.length]
