@@ -173,8 +173,8 @@ module ContextHelp
       true
     end
     def self.get_title(options)
-      title = options[:title] || I18n.t(options[:calculated_path]+'.title', :default => {})
-      if (title.nil? or title.is_a?(Hash)) 
+      title = options[:title] || get_doc_string(options[:calculated_path]+'.title')
+      if title.nil?
         title = nil
         if options[:path][:model]
           begin
@@ -190,18 +190,12 @@ module ContextHelp
         else
           title = I18n.t(options[:calculated_path]+'.title') if Rails.env.development? and ContextHelp::Base.config[:show_missing]
         end
-      else
-        if title.start_with?('t.')
-          title = I18n.t title[2, title.length]
-        elsif title.start_with?('I18n.')
-          title = I18n.t title[5, title.length]
-        end
       end
       title
     end
     def self.get_text(options,missing=true)
-      text = options[:text] || I18n.t(options[:calculated_path]+'.text', :default => {})
-      if (text.nil? or text.is_a?(Hash)) 
+      text = options[:text] || get_doc_string(options[:calculated_path]+'.text')
+      if text.nil?
         if missing and Rails.env.development? and ContextHelp::Base.config[:show_missing]
           I18n.t(options[:calculated_path]+'.text')
         else
@@ -210,6 +204,30 @@ module ContextHelp
       else
         text
       end
+    end
+    def self.get_doc_string(path)
+      plugin_prefixes = ['']
+      plugin_prefixes += Rails.plugins.select{|p| p.is_a?(Engines::Plugin) }.map{ |p| "#{p.name}." }
+      
+      text = ''
+      found = false
+      
+      plugin_prefixes.each do |prefix|
+        begin
+          Rails.logger.info "CHH: " + prefix + path
+          item = I18n.translate prefix + path, :raise => true
+          if item.start_with?('t.')
+            item = I18n.t item[2, item.length]
+          elsif item.start_with?('I18n.')
+            item = I18n.t item[5, item.length]
+          end
+
+          text = text + ' ' + item
+          found = true
+        rescue
+        end
+      end
+      found ? text : nil
     end
     def self.model_name(model)
       model = model.to_s.underscore
@@ -226,7 +244,7 @@ module ContextHelp
         end
         return base
       else
-        return base || added
+        return added || base
       end
     end
     def self.clean(options)
