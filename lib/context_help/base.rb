@@ -142,11 +142,15 @@ module ContextHelp
         end
       end
       found = false
+      last = nil
       @help_items.each do |item|
         found = (item[:calculated_path] == options[:calculated_path])
+        last = item
         break if found
       end
-      if not found
+      if found
+        options.update(last)
+      else
         options[:show_inline] ||= get_option(:show_inline, options)
         options[:title_tag] ||= get_option(:title_tag, options)
         options[:title_class] ||= get_option(:title_class, options)
