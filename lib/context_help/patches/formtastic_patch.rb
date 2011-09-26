@@ -12,8 +12,10 @@ module ContextHelp
     end
     def input(method, options = {})   
       options = ContextHelp::Helpers.merge_options({:context_help => {:path => {:model => model_name.to_sym, :attribute=> method.to_sym}}}, options || {})
-      #options[:label_html] ||= {}
-      #options[:label_html][:context_help] = options[:context_help]
+      options[:label_html] ||= {}
+      options[:label_html][:context_help] = options[:context_help].dup
+      options[:input_html] ||= {}
+      options[:input_html][:context_help] = options[:context_help].dup
       super method, options
     end
     def radio_input(method, options)
